@@ -217,10 +217,11 @@
 
     <div class="card">
       <h2>Paste or upload your invitee list</h2>
-      <p class="hint">One person per line: <strong>Name, Phone, Number attending, Donation paid</strong> (comma or tab separated — pasting straight from Excel/Sheets works). A header row is fine, it'll be skipped automatically. This stays in your browser only.</p>
-      <textarea id="csvInput" placeholder="Jayesh Patel, 07700 900123, 4, £101&#10;Nita Shah, 07700 900456, 2, £51"></textarea>
+      <p class="hint">One person per line: <strong>Surname, First name, Phone, Number attending, Donation paid</strong> (comma or tab separated — pasting straight from Excel/Sheets works). A header row is fine, it'll be skipped automatically. This stays in your browser only.</p>
+      <textarea id="csvInput" placeholder="Patel, Jayesh, 07700 900123, 4, £101&#10;Shah, Nita, 07700 900456, 2, £51"></textarea>
       <div class="row">
-        <input type="file" id="fileInput" accept=".csv,.txt,.tsv" />
+        <input type="file" id="fileInput" accept=".csv,.txt,.tsv,text/csv,text/plain,text/comma-separated-values,application/csv,application/vnd.ms-excel,*/*" />
+        <span id="fileNameLabel" style="font-size:12.5px;color:var(--muted);"></span>
         <button class="btn btn-primary" id="generateBtn">Generate QR codes</button>
         <button class="btn btn-outline" id="clearBtn">Clear all</button>
       </div>
@@ -335,13 +336,13 @@
     const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length);
     if(!lines.length) return [];
     let rows = lines.map(l=>l.split(delim).map(c=>c.trim().replace(/^"|"$/g,'')));
-    if(rows.length && /name/i.test(rows[0][0] || '')) rows = rows.slice(1);
+    if(rows.length && (/name/i.test(rows[0][0] || '') || /name/i.test(rows[0][1] || ''))) rows = rows.slice(1);
     return rows.map((r, i)=>({
       id: 'INV' + String(i+1).padStart(4,'0') + '-' + Math.random().toString(36).slice(2,6).toUpperCase(),
-      name: r[0] || ('Guest ' + (i+1)),
-      phone: r[1] || '',
-      attending: parseInt(r[2], 10) || 1,
-      donation: r[3] || '',
+      name: [r[0], r[1]].filter(Boolean).join(', ') || ('Guest ' + (i+1)),
+      phone: r[2] || '',
+      attending: parseInt(r[3], 10) || 1,
+      donation: r[4] || '',
       checkedIn: false,
       checkedInAt: null
     }));
@@ -350,9 +351,10 @@
   $('#fileInput').addEventListener('change', (e)=>{
     const file = e.target.files[0];
     if(!file) return;
+    $('#fileNameLabel').textContent = 'Selected: ' + file.name;
     const reader = new FileReader();
     reader.onload = (ev)=>{ $('#csvInput').value = ev.target.result; };
-    reader.onerror = ()=> alert('Could not read that file.');
+    reader.onerror = ()=> alert('Could not read that file. Try opening it in your Files/Notes app, copying the text, and pasting it into the box above instead.');
     reader.readAsText(file);
   });
 
