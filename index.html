@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>EventEntry</title>
+<meta name="description" content="Scan-in check-in for community events">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#9A2E36">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EventEntry">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png" type="image/png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<style>
+  :root{
+    --ivory:#FAF3E6;
+    --ivory-deep:#F1E6CE;
+    --ink:#2C1E12;
+    --marigold:#C98A2B;
+    --marigold-deep:#9C6A1D;
+    --kumkum:#9A2E36;
+    --kumkum-deep:#7A2029;
+    --leaf:#3E7A52;
+    --leaf-deep:#2C5A3B;
+    --border:#DCC9A0;
+    --muted:#7A6B54;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ivory);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:960px;margin:0 auto;padding:20px 16px 60px;}
+  header.top{
+    text-align:center;
+    padding:22px 16px 18px;
+    border-bottom:3px double var(--marigold-deep);
+    margin-bottom:20px;
+  }
+  header.top .eyebrow{
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    font-size:11px;
+    color:var(--kumkum-deep);
+    font-weight:700;
+  }
+  header.top input#eventName{
+    font-family:Georgia,"Iowan Old Style","Times New Roman",serif;
+    font-size:26px;
+    font-weight:700;
+    color:var(--ink);
+    text-align:center;
+    background:transparent;
+    border:none;
+    border-bottom:1px dashed transparent;
+    width:100%;
+    padding:6px 4px;
+  }
+  header.top input#eventName:focus{outline:none;border-bottom:1px dashed var(--marigold-deep);}
+  header.top .sub{color:var(--muted);font-size:13px;margin-top:2px;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:20px;}
+  .tab-btn{
+    flex:1;
+    padding:13px 10px;
+    border-radius:var(--radius);
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--ink);
+    font-size:14.5px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .tab-btn.active{
+    background:var(--kumkum);
+    border-color:var(--kumkum-deep);
+    color:#fff;
+  }
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .card{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px;
+    margin-bottom:18px;
+  }
+  .card h2{
+    margin:0 0 4px;
+    font-family:Georgia,"Iowan Old Style",serif;
+    font-size:18px;
+  }
+  .card p.hint{color:var(--muted);font-size:13px;margin:0 0 14px;}
+
+  textarea{
+    width:100%;
+    min-height:150px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:13px;
+    resize:vertical;
+    background:var(--ivory-deep);
+  }
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:11px 18px;
+    border-radius:999px;
+    border:none;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .btn-primary{background:var(--kumkum);color:#fff;}
+  .btn-primary:hover{background:var(--kumkum-deep);}
+  .btn-secondary{background:var(--marigold);color:#fff;}
+  .btn-secondary:hover{background:var(--marigold-deep);}
+  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--ink);}
+  .btn-outline:hover{background:var(--ivory-deep);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  input[type=file]{font-size:13px;}
+
+  .stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .stat{
+    flex:1;min-width:120px;
+    background:#fff;border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px;text-align:center;
+  }
+  .stat .num{font-size:26px;font-weight:800;color:var(--kumkum);font-family:Georgia,serif;}
+  .stat .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:2px;}
+
+  .qr-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+    gap:14px;
+    margin-top:16px;
+  }
+  .qr-card{
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px;
+    text-align:center;
+    background:var(--ivory-deep);
+  }
+  .qr-card .qrbox{display:flex;justify-content:center;margin-bottom:8px;}
+  .qr-card .nm{font-weight:700;font-size:13.5px;line-height:1.25;}
+  .qr-card .meta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .qr-card .dl{
+    margin-top:8px;font-size:11px;padding:6px 10px;border-radius:999px;
+    background:var(--marigold);color:#fff;border:none;cursor:pointer;font-weight:700;
+  }
+
+  video{width:100%;max-width:420px;border-radius:12px;display:block;margin:0 auto;background:#000;}
+  canvas#scanCanvas{display:none;}
+
+  .scan-result{
+    margin-top:16px;padding:16px;border-radius:var(--radius);
+    text-align:center;font-size:15px;
+  }
+  .scan-result.ok{background:#E4F2E8;border:1px solid var(--leaf);}
+  .scan-result.dup{background:#FDF1DD;border:1px solid var(--marigold-deep);}
+  .scan-result.bad{background:#FBE6E7;border:1px solid var(--kumkum);}
+  .scan-result .nm{font-size:19px;font-weight:800;font-family:Georgia,serif;}
+  .scan-result .meta{color:var(--muted);font-size:13px;margin-top:4px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;}
+  th,td{padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;}
+  th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+  .badge{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}
+  .badge.in{background:#E4F2E8;color:var(--leaf-deep);}
+  .badge.out{background:#F2E9DA;color:var(--muted);}
+
+  .search-box{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:10px;}
+  .manual-list{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:10px;}
+  .manual-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);}
+  .manual-row:last-child{border-bottom:none;}
+  .manual-row .mini-btn{padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;border:none;cursor:pointer;}
+  .mini-btn.check{background:var(--leaf);color:#fff;}
+  .mini-btn.undo{background:#eee;color:var(--ink);}
+
+  .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    .tabs,.card > p.hint,.row{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{position:absolute;top:0;left:0;width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="eyebrow">EventEntry</div>
+    <input id="eventName" value="Samudri Mata Patotsav Mahotsav" />
+    <div class="sub">Generate entry QR codes &amp; check invitees in at the door</div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="setup">1 · Setup &amp; QR Codes</button>
+    <button class="tab-btn" data-tab="checkin">2 · Check-in</button>
+  </div>
+
+  <!-- SETUP PANEL -->
+  <div class="panel active" id="panel-setup">
+
+    <div class="card">
+      <h2>Paste or upload your invitee list</h2>
+      <p class="hint">One person per line: <strong>Name, Phone, Number attending, Donation paid</strong> (comma or tab separated — pasting straight from Excel/Sheets works). A header row is fine, it'll be skipped automatically. This stays in your browser only.</p>
+      <textarea id="csvInput" placeholder="Jayesh Patel, 07700 900123, 4, £101&#10;Nita Shah, 07700 900456, 2, £51"></textarea>
+      <div class="row">
+        <input type="file" id="fileInput" accept=".csv,.txt,.tsv" />
+        <button class="btn btn-primary" id="generateBtn">Generate QR codes</button>
+        <button class="btn btn-outline" id="clearBtn">Clear all</button>
+      </div>
+    </div>
+
+    <div class="card" id="resultsCard" style="display:none;">
+      <h2>Invitee QR codes</h2>
+      <p class="hint">Send each code individually via WhatsApp (tap Download under a card), or print this whole sheet as a backup at the door.</p>
+      <div class="row">
+        <button class="btn btn-secondary" id="printBtn">Print all</button>
+        <button class="btn btn-outline" id="exportMasterBtn">Download master list (CSV)</button>
+      </div>
+      <div id="printArea">
+        <div class="qr-grid" id="qrGrid"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHECK-IN PANEL -->
+  <div class="panel" id="panel-checkin">
+
+    <div class="stat-row">
+      <div class="stat"><div class="num" id="statTotal">0</div><div class="lbl">Invitees</div></div>
+      <div class="stat"><div class="num" id="statCheckedIn">0</div><div class="lbl">Checked in</div></div>
+      <div class="stat"><div class="num" id="statPeople">0</div><div class="lbl">People arrived</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Scan QR code</h2>
+      <p class="hint">Point the camera at the guest's QR code (on their phone or a printout).</p>
+      <div class="row">
+        <button class="btn btn-primary" id="startCamBtn">Start camera</button>
+        <button class="btn btn-outline" id="stopCamBtn" style="display:none;">Stop camera</button>
+      </div>
+      <video id="video" playsinline style="margin-top:14px;display:none;"></video>
+      <canvas id="scanCanvas"></canvas>
+      <div id="scanResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>Manual check-in</h2>
+      <p class="hint">No camera, or code won't scan? Search by name or phone instead.</p>
+      <input type="text" class="search-box" id="searchBox" placeholder="Search name or phone…" />
+      <div class="manual-list" id="manualList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Guest list &amp; export</h2>
+      <div class="row" style="margin-top:0;margin-bottom:10px;">
+        <button class="btn btn-outline" id="exportResultsBtn">Download check-in results (CSV)</button>
+      </div>
+      <div style="max-height:320px;overflow:auto;">
+        <table id="statusTable">
+          <thead><tr><th>Name</th><th>Attending</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+(function(){
+  let STATE = { eventName: "Samudri Mata Patotsav Mahotsav", list: [] };
+  let stream = null;
+  let scanning = false;
+  let lastScanId = null;
+  let lastScanTime = 0;
+
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+  // ---------- persistence ----------
+  async function saveState(){
+    try{
+      await window.storage.set('checkin-app-state', JSON.stringify(STATE), false);
+    }catch(e){ console.error('save failed', e); }
+  }
+  async function loadState(){
+    try{
+      const res = await window.storage.get('checkin-app-state', false);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(parsed && Array.isArray(parsed.list)) STATE = parsed;
+      }
+    }catch(e){ /* no saved state yet */ }
+  }
+
+  // ---------- tabs ----------
+  $$('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      $$('.tab-btn').forEach(b=>b.classList.remove('active'));
+      $$('.panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      $('#panel-' + btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab === 'checkin'){ renderManualList(); renderStatusTable(); renderStats(); }
+      if(btn.dataset.tab !== 'checkin'){ stopCamera(); }
+    });
+  });
+
+  $('#eventName').addEventListener('input', (e)=>{
+    STATE.eventName = e.target.value;
+    saveState();
+  });
+
+  // ---------- CSV parsing ----------
+  function parseCSV(text){
+    const delim = text.includes('\t') ? '\t' : ',';
+    const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length);
+    if(!lines.length) return [];
+    let rows = lines.map(l=>l.split(delim).map(c=>c.trim().replace(/^"|"$/g,'')));
+    if(rows.length && /name/i.test(rows[0][0] || '')) rows = rows.slice(1);
+    return rows.map((r, i)=>({
+      id: 'INV' + String(i+1).padStart(4,'0') + '-' + Math.random().toString(36).slice(2,6).toUpperCase(),
+      name: r[0] || ('Guest ' + (i+1)),
+      phone: r[1] || '',
+      attending: parseInt(r[2], 10) || 1,
+      donation: r[3] || '',
+      checkedIn: false,
+      checkedInAt: null
+    }));
+  }
+
+  $('#fileInput').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{ $('#csvInput').value = ev.target.result; };
+    reader.onerror = ()=> alert('Could not read that file.');
+    reader.readAsText(file);
+  });
+
+  $('#generateBtn').addEventListener('click', ()=>{
+    const text = $('#csvInput').value;
+    if(!text.trim()){ alert('Paste or upload your invitee list first.'); return; }
+    const parsed = parseCSV(text);
+    if(!parsed.length){ alert('Could not find any rows to import.'); return; }
+    STATE.list = parsed;
+    saveState();
+    renderQRGrid();
+    renderManualList();
+    renderStatusTable();
+    renderStats();
+  });
+
+  $('#clearBtn').addEventListener('click', ()=>{
+    if(!confirm('Clear the current list and all check-in progress?')) return;
+    STATE.list = [];
+    saveState();
+    $('#csvInput').value = '';
+    $('#resultsCard').style.display = 'none';
+    $('#qrGrid').innerHTML = '';
+    renderManualList(); renderStatusTable(); renderStats();
+  });
+
+  // ---------- QR generation ----------
+  function renderQRGrid(){
+    const grid = $('#qrGrid');
+    grid.innerHTML = '';
+    if(!STATE.list.length){ $('#resultsCard').style.display = 'none'; return; }
+    $('#resultsCard').style.display = 'block';
+    STATE.list.forEach(person=>{
+      const card = document.createElement('div');
+      card.className = 'qr-card';
+      const qrBoxId = 'qr-' + person.id;
+      card.innerHTML =
+        '<div class="qrbox" id="' + qrBoxId + '"></div>' +
+        '<div class="nm">' + escapeHtml(person.name) + '</div>' +
+        '<div class="meta">Attending: ' + person.attending + (person.donation ? ' · ' + escapeHtml(person.donation) : '') + '</div>' +
+        '<button class="dl">Download</button>';
+      grid.appendChild(card);
+      new QRCode(document.getElementById(qrBoxId), { text: person.id, width: 140, height: 140 });
+      card.querySelector('.dl').addEventListener('click', ()=> downloadQR(qrBoxId, person.name));
+    });
+  }
+
+  function downloadQR(boxId, name){
+    const box = document.getElementById(boxId);
+    const canvas = box.querySelector('canvas');
+    const img = box.querySelector('img');
+    const dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+    if(!dataUrl){ alert('Could not prepare that QR code for download.'); return; }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = (name || 'guest').replace(/[^a-z0-9]+/gi, '_') + '_qr.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  $('#printBtn').addEventListener('click', ()=> window.print());
+
+  $('#exportMasterBtn').addEventListener('click', ()=>{
+    downloadCSV(
+      ['Name','Phone','Attending','Donation','ID'],
+      STATE.list.map(p=>[p.name,p.phone,p.attending,p.donation,p.id]),
+      'invitee-master-list.csv'
+    );
+  });
+
+  $('#exportResultsBtn').addEventListener('click', ()=>{
+    downloadCSV(
+      ['Name','Phone','Attending','Donation','Checked In','Check-in Time'],
+      STATE.list.map(p=>[p.name,p.phone,p.attending,p.donation,p.checkedIn?'Yes':'No', p.checkedInAt ? new Date(p.checkedInAt).toLocaleString() : '']),
+      'checkin-results.csv'
+    );
+  });
+
+  function downloadCSV(header, rows, filename){
+    if(!STATE.list.length){ alert('No list loaded yet.'); return; }
+    const esc = (v)=> '"' + String(v).replace(/"/g,'""') + '"';
+    const csv = [header.map(esc).join(','), ...rows.map(r=>r.map(esc).join(','))].join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- check-in logic ----------
+  function markCheckedIn(person){
+    if(person.checkedIn){
+      showScanResult('dup', person, 'Already checked in at ' + new Date(person.checkedInAt).toLocaleTimeString());
+      return;
+    }
+    person.checkedIn = true;
+    person.checkedInAt = Date.now();
+    saveState();
+    renderManualList(); renderStatusTable(); renderStats();
+    showScanResult('ok', person, 'Checked in just now');
+    if(navigator.vibrate) navigator.vibrate(80);
+  }
+
+  function undoCheckIn(person){
+    person.checkedIn = false;
+    person.checkedInAt = null;
+    saveState();
+    renderManualList(); renderStatusTable(); renderStats();
+  }
+
+  function showScanResult(kind, person, subtitle){
+    const el = $('#scanResult');
+    el.className = 'scan-result ' + kind;
+    el.innerHTML =
+      '<div class="nm">' + escapeHtml(person.name) + '</div>' +
+      '<div class="meta">Attending: ' + person.attending + (person.donation ? ' · ' + escapeHtml(person.donation) : '') + '</div>' +
+      '<div class="meta">' + escapeHtml(subtitle) + '</div>';
+  }
+
+  function showNotFound(code){
+    const el = $('#scanResult');
+    el.className = 'scan-result bad';
+    el.innerHTML = '<div class="nm">Not on the list</div><div class="meta">Scanned code: ' + escapeHtml(code) + '</div>';
+  }
+
+  // ---------- camera scanning ----------
+  const video = $('#video');
+  const canvas = $('#scanCanvas');
+  const ctx = canvas.getContext('2d');
+
+  $('#startCamBtn').addEventListener('click', startCamera);
+  $('#stopCamBtn').addEventListener('click', stopCamera);
+
+  async function startCamera(){
+    if(!STATE.list.length){ alert('Generate or load your invitee list first (Setup tab).'); return; }
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = stream;
+      video.style.display = 'block';
+      await video.play();
+      $('#startCamBtn').style.display = 'none';
+      $('#stopCamBtn').style.display = 'inline-flex';
+      scanning = true;
+      requestAnimationFrame(scanLoop);
+    }catch(e){
+      alert('Could not access the camera. You can still use manual check-in below.');
+    }
+  }
+
+  function stopCamera(){
+    scanning = false;
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+    video.style.display = 'none';
+    $('#startCamBtn').style.display = 'inline-flex';
+    $('#stopCamBtn').style.display = 'none';
+  }
+
+  function scanLoop(){
+    if(!scanning) return;
+    if(video.readyState === video.HAVE_ENOUGH_DATA){
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if(code && code.data){
+        handleScannedCode(code.data);
+      }
+    }
+    requestAnimationFrame(scanLoop);
+  }
+
+  function handleScannedCode(data){
+    const now = Date.now();
+    if(data === lastScanId && (now - lastScanTime) < 2500) return; // debounce
+    lastScanId = data; lastScanTime = now;
+    const person = STATE.list.find(p=>p.id === data);
+    if(!person){ showNotFound(data); return; }
+    markCheckedIn(person);
+  }
+
+  // ---------- manual check-in ----------
+  $('#searchBox').addEventListener('input', renderManualList);
+
+  function renderManualList(){
+    const box = $('#manualList');
+    const q = ($('#searchBox').value || '').toLowerCase().trim();
+    box.innerHTML = '';
+    if(!STATE.list.length){ box.innerHTML = '<div class="empty">No list loaded yet — set it up in the first tab.</div>'; return; }
+    const filtered = STATE.list.filter(p =>
+      !q || p.name.toLowerCase().includes(q) || (p.phone || '').toLowerCase().includes(q)
+    ).slice(0, 60);
+    if(!filtered.length){ box.innerHTML = '<div class="empty">No matches.</div>'; return; }
+    filtered.forEach(p=>{
+      const row = document.createElement('div');
+      row.className = 'manual-row';
+      row.innerHTML =
+        '<div><strong>' + escapeHtml(p.name) + '</strong><div class="meta" style="color:#7A6B54;font-size:12px;">' +
+          'Attending ' + p.attending + (p.phone ? ' · ' + escapeHtml(p.phone) : '') + '</div></div>';
+      const btn = document.createElement('button');
+      if(p.checkedIn){
+        btn.className = 'mini-btn undo';
+        btn.textContent = 'Undo';
+        btn.addEventListener('click', ()=> undoCheckIn(p));
+      }else{
+        btn.className = 'mini-btn check';
+        btn.textContent = 'Check in';
+        btn.addEventListener('click', ()=> markCheckedIn(p));
+      }
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+  }
+
+  // ---------- status table + stats ----------
+  function renderStatusTable(){
+    const tbody = $('#statusTable tbody');
+    tbody.innerHTML = '';
+    STATE.list.forEach(p=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escapeHtml(p.name) + '</td>' +
+        '<td>' + p.attending + '</td>' +
+        '<td><span class="badge ' + (p.checkedIn ? 'in' : 'out') + '">' + (p.checkedIn ? 'Checked in' : 'Not yet') + '</span></td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderStats(){
+    const total = STATE.list.length;
+    const checkedIn = STATE.list.filter(p=>p.checkedIn).length;
+    const people = STATE.list.filter(p=>p.checkedIn).reduce((s,p)=>s + (p.attending||0), 0);
+    $('#statTotal').textContent = total;
+    $('#statCheckedIn').textContent = checkedIn;
+    $('#statPeople').textContent = people;
+  }
+
+  // ---------- init ----------
+  (async function init(){
+    await loadState();
+    if(STATE.eventName) $('#eventName').value = STATE.eventName;
+    if(STATE.list.length){
+      $('#csvInput').value = STATE.list.map(p=>[p.name,p.phone,p.attending,p.donation].join(',')).join('\n');
+      renderQRGrid();
+    }
+    renderManualList();
+    renderStatusTable();
+    renderStats();
+  })();
+
+  // ---------- PWA: install prompt + service worker ----------
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+    });
+  }
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e)=>{
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-secondary';
+    btn.textContent = 'Install EventEntry';
+    btn.style.marginTop = '10px';
+    btn.addEventListener('click', async ()=>{
+      btn.remove();
+      if(deferredInstallPrompt){
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+      }
+    });
+    document.querySelector('header.top').appendChild(btn);
+  });
+})();
+</script>
+</body>
+</html>
