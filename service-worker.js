@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eventEntry-v4';
+const CACHE_NAME = 'eventEntry-v7';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
