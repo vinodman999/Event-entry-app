@@ -302,14 +302,14 @@
   // ---------- persistence ----------
   async function saveState(){
     try{
-      await window.storage.set('checkin-app-state', JSON.stringify(STATE), false);
+      localStorage.setItem('eventEntryState', JSON.stringify(STATE));
     }catch(e){ console.error('save failed', e); }
   }
   async function loadState(){
     try{
-      const res = await window.storage.get('checkin-app-state', false);
-      if(res && res.value){
-        const parsed = JSON.parse(res.value);
+      const raw = localStorage.getItem('eventEntryState');
+      if(raw){
+        const parsed = JSON.parse(raw);
         if(parsed && Array.isArray(parsed.list)) STATE = parsed;
       }
     }catch(e){ /* no saved state yet */ }
