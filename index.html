@@ -14,6 +14,7 @@
 <link rel="icon" href="icon-192.png" type="image/png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --ivory:#FAF3E6;
@@ -231,6 +232,7 @@
       <h2>Invitee QR codes</h2>
       <p class="hint">Send each code individually via WhatsApp (tap Download under a card), or print this whole sheet as a backup at the door.</p>
       <div class="row">
+        <button class="btn btn-secondary" id="downloadZipBtn">Download all QR codes (ZIP)</button>
         <button class="btn btn-secondary" id="printBtn">Print all</button>
         <button class="btn btn-outline" id="exportMasterBtn">Download master list (CSV)</button>
       </div>
@@ -398,23 +400,63 @@
         '<button class="dl">Download</button>';
       grid.appendChild(card);
       new QRCode(document.getElementById(qrBoxId), { text: person.id, width: 140, height: 140 });
-      card.querySelector('.dl').addEventListener('click', ()=> downloadQR(qrBoxId, person.name));
+      card.querySelector('.dl').addEventListener('click', ()=> downloadQR(qrBoxId, person));
     });
   }
 
-  function downloadQR(boxId, name){
+  function getQRDataUrl(boxId){
     const box = document.getElementById(boxId);
     const canvas = box.querySelector('canvas');
     const img = box.querySelector('img');
-    const dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+    return canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+  }
+
+  function qrFilename(person){
+    const suffix = person.id.slice(-4);
+    return (person.name || 'guest').replace(/[^a-z0-9]+/gi, '_') + '_' + suffix + '_qr.png';
+  }
+
+  function downloadQR(boxId, person){
+    const dataUrl = getQRDataUrl(boxId);
     if(!dataUrl){ alert('Could not prepare that QR code for download.'); return; }
     const a = document.createElement('a');
     a.href = dataUrl;
-    a.download = (name || 'guest').replace(/[^a-z0-9]+/gi, '_') + '_qr.png';
+    a.download = qrFilename(person);
     document.body.appendChild(a);
     a.click();
     a.remove();
   }
+
+  $('#downloadZipBtn').addEventListener('click', async ()=>{
+    if(!STATE.list.length){ alert('Generate the QR codes first.'); return; }
+    const btn = $('#downloadZipBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Preparing…';
+    btn.disabled = true;
+    try{
+      const zip = new JSZip();
+      STATE.list.forEach(person=>{
+        const dataUrl = getQRDataUrl('qr-' + person.id);
+        if(!dataUrl) return;
+        const base64 = dataUrl.split(',')[1];
+        zip.file(qrFilename(person), base64, { base64: true });
+      });
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (STATE.eventName || 'event').replace(/[^a-z0-9]+/gi, '_') + '_qr_codes.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }catch(e){
+      alert('Could not build the ZIP file. Try downloading a few individually instead.');
+    }finally{
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  });
 
   $('#printBtn').addEventListener('click', ()=> window.print());
 
