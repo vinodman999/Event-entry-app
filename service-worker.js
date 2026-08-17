@@ -1,4 +1,4 @@
-const CACHE_NAME = 'darshangate-v1';
+const CACHE_NAME = 'eventEntry-v2';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
