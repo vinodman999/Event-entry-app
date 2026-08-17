@@ -404,11 +404,60 @@
     });
   }
 
-  function getQRDataUrl(boxId){
+  function getQRSourceElement(boxId){
     const box = document.getElementById(boxId);
-    const canvas = box.querySelector('canvas');
-    const img = box.querySelector('img');
-    return canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+    return box ? (box.querySelector('canvas') || box.querySelector('img')) : null;
+  }
+
+  function composeLabeledQR(person){
+    return new Promise((resolve, reject)=>{
+      const src = getQRSourceElement('qr-' + person.id);
+      if(!src){ reject('QR not found'); return; }
+
+      function draw(sourceEl){
+        const outW = 320;
+        const qrSize = 240;
+        const padding = 24;
+        const lineH = 24;
+        const lines = [person.name, 'Attending: ' + person.attending];
+        if(person.donation) lines.push(person.donation);
+        const outH = padding + qrSize + (lines.length * lineH) + padding + 8;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, outW, outH);
+
+        const qrX = (outW - qrSize) / 2;
+        ctx.drawImage(sourceEl, qrX, padding, qrSize, qrSize);
+
+        ctx.textAlign = 'center';
+        let y = padding + qrSize + 28;
+        ctx.fillStyle = '#2C1E12';
+        ctx.font = 'bold 18px -apple-system, Arial, sans-serif';
+        ctx.fillText(lines[0], outW / 2, y, outW - 24);
+
+        ctx.fillStyle = '#7A6B54';
+        ctx.font = '14px -apple-system, Arial, sans-serif';
+        for(let i = 1; i < lines.length; i++){
+          y += lineH;
+          ctx.fillText(lines[i], outW / 2, y, outW - 24);
+        }
+
+        resolve(canvas.toDataURL('image/png'));
+      }
+
+      if(src.tagName === 'CANVAS'){
+        draw(src);
+      }else if(src.complete){
+        draw(src);
+      }else{
+        src.onload = () => draw(src);
+        src.onerror = () => reject('QR image failed to load');
+      }
+    });
   }
 
   function qrFilename(person){
@@ -416,9 +465,14 @@
     return (person.name || 'guest').replace(/[^a-z0-9]+/gi, '_') + '_' + suffix + '_qr.png';
   }
 
-  function downloadQR(boxId, person){
-    const dataUrl = getQRDataUrl(boxId);
-    if(!dataUrl){ alert('Could not prepare that QR code for download.'); return; }
+  async function downloadQR(boxId, person){
+    let dataUrl;
+    try{
+      dataUrl = await composeLabeledQR(person);
+    }catch(e){
+      alert('Could not prepare that QR code for download.');
+      return;
+    }
     const a = document.createElement('a');
     a.href = dataUrl;
     a.download = qrFilename(person);
@@ -435,12 +489,13 @@
     btn.disabled = true;
     try{
       const zip = new JSZip();
-      STATE.list.forEach(person=>{
-        const dataUrl = getQRDataUrl('qr-' + person.id);
-        if(!dataUrl) return;
-        const base64 = dataUrl.split(',')[1];
-        zip.file(qrFilename(person), base64, { base64: true });
-      });
+      for(const person of STATE.list){
+        try{
+          const dataUrl = await composeLabeledQR(person);
+          const base64 = dataUrl.split(',')[1];
+          zip.file(qrFilename(person), base64, { base64: true });
+        }catch(e){ /* skip this one, continue with the rest */ }
+      }
       const blob = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
